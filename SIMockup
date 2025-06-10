@@ -1,0 +1,87 @@
+<!-- src/App.vue -->
+<template>
+  <GenericDataLoader :methodName="'getUsers'">
+    <template #default="{ data }">
+      <ul>
+        <li v-for="user in data" :key="user.id">{{ user.name }}</li>
+      </ul>
+    </template>
+  </GenericDataLoader>
+  <GenericDataLoader :methodName="'getProducts'">
+    <template #default="{ data }">
+      <ul>
+        <li v-for="product in data" :key="product.id">{{ product.name }}</li>
+      </ul>
+    </template>
+  </GenericDataLoader>
+</template>
+
+<script lang="ts">
+import { defineComponent, provide } from 'vue';
+import { DataService } from './services/dataService';
+import GenericDataLoader from './components/GenericDataLoader.vue';
+
+export default defineComponent({
+  name: 'App',
+  components: { GenericDataLoader },
+  setup() {
+    const dataService = new DataService();
+    provide('dataService', dataService);
+  }
+});
+</script>
+
+
+
+
+<!-- src/components/GenericDataLoader.vue -->
+<template>
+  <div v-if="loading">Loading...</div>
+  <div v-else-if="error">Error: {{ error }}</div>
+  <div v-else>
+    <slot :data="data" />
+  </div>
+</template>
+
+<script lang="ts">
+import { defineComponent, inject, PropType, ref, onMounted } from 'vue';
+import { DataService } from '@/services/dataService';
+
+export default defineComponent({
+  name: 'GenericDataLoader',
+  props: {
+    methodName: {
+      type: String,
+      required: true
+    }
+  },
+  setup(props) {
+    const dataService = inject<DataService>('dataService');
+    const data = ref<any>(null);
+    const loading = ref(true);
+    const error = ref<string | null>(null);
+
+    onMounted(async () => {
+      if (dataService) {
+        try {
+          const method = dataService[props.methodName];
+          if (typeof method === 'function') {
+            data.value = await method.call(dataService);
+          } else {
+            throw new Error(`Method '${props.methodName}' not found.`);
+          }
+        } catch (err: any) {
+          error.value = err.message || 'Failed to load data.';
+        } finally {
+          loading.value = false;
+        }
+      } else {
+        error.value = 'DataService not provided.';
+        loading.value = false;
+      }
+    });
+
+    return { data, loading, error };
+  }
+});
+</script>
