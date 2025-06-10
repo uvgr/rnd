@@ -1,0 +1,298 @@
+//GenericModal.vue
+<template>
+  <teleport to="body">
+    <transition name="fade">
+      <div
+        v-if="visible"
+        class="modal"
+        :style="modalStyle"
+        @mousedown="bringToFront"
+        @keydown.esc="handleEsc"
+        tabindex="0"
+        ref="modal"
+        v-show="!isMinimized"
+      >
+        <div class="modal-header" @mousedown="startDrag">
+          <span>{{ title }}</span>
+          <div class="modal-buttons">
+            <button @click.stop="toggleMinimize">🗕</button>
+            <button @click.stop="emitClose">✕</button>
+          </div>
+        </div>
+
+        <div class="modal-body">
+          <slot />
+        </div>
+
+        <div class="resize-handle" @mousedown="startResize"></div>
+      </div>
+    </transition>
+  </teleport>
+</template>
+
+<script>
+let zIndexCounter = 1000;
+
+export default {
+  name: "GenericModal",
+  props: {
+    id: { type: Number, required: true },
+    title: { type: String, default: "Modal" },
+    width: { type: Number, default: 300 },
+    height: { type: Number, default: 200 },
+  },
+  data() {
+    return {
+      visible: true,
+      isMinimized: false,
+      posX: 100,
+      posY: 100,
+      modalWidth: this.width,
+      modalHeight: this.height,
+      dragging: false,
+      resizing: false,
+      offsetX: 0,
+      offsetY: 0,
+      zIndex: zIndexCounter++,
+    };
+  },
+  computed: {
+    modalStyle() {
+      return {
+        left: this.posX + "px",
+        top: this.posY + "px",
+        width: this.modalWidth + "px",
+        height: this.modalHeight + "px",
+        zIndex: this.zIndex,
+        position: "absolute",
+      };
+    },
+  },
+  mounted() {
+    this.$refs.modal.focus();
+  },
+  methods: {
+    emitClose() {
+      this.visible = false;
+      this.$emit("close", this.id);
+    },
+    bringToFront() {
+      this.zIndex = ++zIndexCounter;
+    },
+    handleEsc() {
+      this.emitClose();
+    },
+    toggleMinimize() {
+      this.isMinimized = true;
+      this.$emit("minimize", {
+        id: this.id,
+        title: this.title,
+      });
+    },
+    startDrag(event) {
+      this.dragging = true;
+      this.offsetX = event.clientX - this.posX;
+      this.offsetY = event.clientY - this.posY;
+      window.addEventListener("mousemove", this.onDrag);
+      window.addEventListener("mouseup", this.stopDrag);
+    },
+    onDrag(event) {
+      if (!this.dragging) return;
+      this.posX = event.clientX - this.offsetX;
+      this.posY = event.clientY - this.offsetY;
+    },
+    stopDrag() {
+      this.dragging = false;
+      window.removeEventListener("mousemove", this.onDrag);
+      window.removeEventListener("mouseup", this.stopDrag);
+    },
+    startResize(event) {
+      this.resizing = true;
+      this.offsetX = event.clientX;
+      this.offsetY = event.clientY;
+      window.addEventListener("mousemove", this.onResize);
+      window.addEventListener("mouseup", this.stopResize);
+    },
+    onResize(event) {
+      if (!this.resizing) return;
+      this.modalWidth += event.clientX - this.offsetX;
+      this.modalHeight += event.clientY - this.offsetY;
+      this.offsetX = event.clientX;
+      this.offsetY = event.clientY;
+    },
+    stopResize() {
+      this.resizing = false;
+      window.removeEventListener("mousemove", this.onResize);
+      window.removeEventListener("mouseup", this.stopResize);
+    },
+  },
+};
+</script>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.modal {
+  background: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+  outline: none;
+  overflow: hidden;
+}
+
+.modal-header {
+  padding: 0.5em;
+  background: #2c3e50;
+  color: white;
+  cursor: move;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-buttons button {
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 1em;
+  cursor: pointer;
+}
+
+.modal-body {
+  flex: 1;
+  padding: 1em;
+  overflow: auto;
+}
+
+.resize-handle {
+  width: 15px;
+  height: 15px;
+  background: #ccc;
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  cursor: se-resize;
+}
+</style>
+
+
+
+//ModalDock.vue
+<template>
+  <div class="modal-dock">
+    <button
+      v-for="modal in minimizedModals"
+      :key="modal.id"
+      class="dock-button"
+      @click="$emit('restore', modal.id)"
+    >
+      🗖 {{ modal.title }}
+    </button>
+  </div>
+</template>
+
+<script>
+export default {
+  name: "ModalDock",
+  props: {
+    minimizedModals: Array,
+  },
+};
+</script>
+
+<style scoped>
+.modal-dock {
+  position: fixed;
+  bottom: 60px; /* adjust if footer is taller */
+  left: 0;
+  right: 0;
+  padding: 10px;
+  background: #f0f0f0;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  z-index: 9999;
+  border-top: 1px solid #ccc;
+}
+
+.dock-button {
+  background: #fff;
+  border: 1px solid #999;
+  padding: 5px 10px;
+  cursor: pointer;
+  border-radius: 3px;
+}
+</style>
+
+
+//App.vue
+<template>
+  <div>
+    <button @click="openModal('Modal A')">Open Modal A</button>
+    <button @click="openModal('Modal B')">Open Modal B</button>
+
+    <GenericModal
+      v-for="modal in activeModals"
+      :key="modal.id"
+      :id="modal.id"
+      :title="modal.title"
+      @close="closeModal"
+      @minimize="minimizeModal"
+    >
+      <p>This is <strong>{{ modal.title }}</strong></p>
+    </GenericModal>
+
+    <ModalDock
+      :minimizedModals="minimizedModals"
+      @restore="restoreModal"
+    />
+  </div>
+</template>
+
+<script>
+import GenericModal from "./components/GenericModal.vue";
+import ModalDock from "./components/ModalDock.vue";
+
+let idCounter = 0;
+
+export default {
+  name: "App",
+  components: { GenericModal, ModalDock },
+  data() {
+    return {
+      activeModals: [],
+      minimizedModals: [],
+    };
+  },
+  methods: {
+    openModal(title) {
+      const id = ++idCounter;
+      this.activeModals.push({ id, title });
+    },
+    closeModal(id) {
+      this.activeModals = this.activeModals.filter(m => m.id !== id);
+      this.minimizedModals = this.minimizedModals.filter(m => m.id !== id);
+    },
+    minimizeModal({ id, title }) {
+      this.activeModals = this.activeModals.filter(m => m.id !== id);
+      this.minimizedModals.push({ id, title });
+    },
+    restoreModal(id) {
+      const modal = this.minimizedModals.find(m => m.id === id);
+      if (modal) {
+        this.activeModals.push(modal);
+        this.minimizedModals = this.minimizedModals.filter(m => m.id !== id);
+      }
+    },
+  },
+};
+</script>
