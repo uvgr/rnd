@@ -1,0 +1,186 @@
+//GenericModal.vue
+
+<template>
+  <div
+    class="modal"
+    :style="modalStyle"
+    @mousedown="bringToFront"
+  >
+    <div class="modal-header" @mousedown="startDrag">
+      <span>{{ title }}</span>
+      <button @click="$emit('close')">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <slot />
+    </div>
+
+    <div class="resize-handle" @mousedown="startResize"></div>
+  </div>
+</template>
+
+<script>
+let zIndexCounter = 1000; // global counter to manage z-index stacking
+
+export default {
+  name: "GenericModal",
+  props: {
+    title: {
+      type: String,
+      default: "Modal",
+    },
+    width: {
+      type: Number,
+      default: 300,
+    },
+    height: {
+      type: Number,
+      default: 200,
+    },
+  },
+  data() {
+    return {
+      posX: 100,
+      posY: 100,
+      modalWidth: this.width,
+      modalHeight: this.height,
+      dragging: false,
+      resizing: false,
+      offsetX: 0,
+      offsetY: 0,
+      zIndex: zIndexCounter++,
+    };
+  },
+  computed: {
+    modalStyle() {
+      return {
+        left: this.posX + "px",
+        top: this.posY + "px",
+        width: this.modalWidth + "px",
+        height: this.modalHeight + "px",
+        zIndex: this.zIndex,
+      };
+    },
+  },
+  methods: {
+    bringToFront() {
+      this.zIndex = ++zIndexCounter;
+    },
+    startDrag(event) {
+      this.dragging = true;
+      this.offsetX = event.clientX - this.posX;
+      this.offsetY = event.clientY - this.posY;
+      window.addEventListener("mousemove", this.onDrag);
+      window.addEventListener("mouseup", this.stopDrag);
+    },
+    onDrag(event) {
+      if (!this.dragging) return;
+      this.posX = event.clientX - this.offsetX;
+      this.posY = event.clientY - this.offsetY;
+    },
+    stopDrag() {
+      this.dragging = false;
+      window.removeEventListener("mousemove", this.onDrag);
+      window.removeEventListener("mouseup", this.stopDrag);
+    },
+    startResize(event) {
+      this.resizing = true;
+      this.offsetX = event.clientX;
+      this.offsetY = event.clientY;
+      window.addEventListener("mousemove", this.onResize);
+      window.addEventListener("mouseup", this.stopResize);
+    },
+    onResize(event) {
+      if (!this.resizing) return;
+      this.modalWidth += event.clientX - this.offsetX;
+      this.modalHeight += event.clientY - this.offsetY;
+      this.offsetX = event.clientX;
+      this.offsetY = event.clientY;
+    },
+    stopResize() {
+      this.resizing = false;
+      window.removeEventListener("mousemove", this.onResize);
+      window.removeEventListener("mouseup", this.stopResize);
+    },
+  },
+};
+</script>
+
+<style scoped>
+.modal {
+  position: absolute;
+  border: 1px solid #ccc;
+  background: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+}
+
+.modal-header {
+  padding: 0.5em;
+  background: #2c3e50;
+  color: white;
+  cursor: move;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-body {
+  flex: 1;
+  padding: 1em;
+  overflow: auto;
+}
+
+.resize-handle {
+  width: 15px;
+  height: 15px;
+  background: #ccc;
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  cursor: se-resize;
+}
+</style>
+
+//App.vue
+<template>
+  <div>
+    <button @click="openModal('Modal A')">Open Modal A</button>
+    <button @click="openModal('Modal B')">Open Modal B</button>
+
+    <GenericModal
+      v-for="(modal, index) in modals"
+      :key="modal.id"
+      :title="modal.title"
+      @close="closeModal(modal.id)"
+    >
+      <p>This is {{ modal.title }} content.</p>
+    </GenericModal>
+  </div>
+</template>
+
+<script>
+import GenericModal from "./components/GenericModal.vue";
+
+let idCounter = 0;
+
+export default {
+  name: "App",
+  components: { GenericModal },
+  data() {
+    return {
+      modals: [],
+    };
+  },
+  methods: {
+    openModal(title) {
+      this.modals.push({ id: ++idCounter, title });
+    },
+    closeModal(id) {
+      this.modals = this.modals.filter((modal) => modal.id !== id);
+    },
+  },
+};
+</script>
