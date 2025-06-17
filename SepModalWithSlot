@@ -1,0 +1,148 @@
+//MF.v
+<template>
+  <div class="modal-footer-content">
+    <slot></slot>
+  </div>
+</template>
+
+<script>
+export default {
+  name: "ModalFooter"
+}
+</script>
+
+<style scoped>
+.modal-footer-content {
+  text-align: right;
+}
+</style>
+
+
+//MB.v
+<template>
+  <div class="modal-body-content">
+    <slot></slot>
+  </div>
+</template>
+
+<script>
+export default {
+  name: "ModalBody"
+}
+</script>
+
+<style scoped>
+.modal-body-content {
+  font-size: 1rem;
+}
+</style>
+
+
+//BM.v
+<template>
+  <div v-if="visible" class="modal-overlay">
+    <div class="modal-content">
+      <!-- Header Slot -->
+      <div class="modal-header">
+        <slot name="header"></slot>
+      </div>
+
+      <!-- Body Slot -->
+      <div class="modal-body">
+        <slot name="body"></slot>
+      </div>
+
+      <!-- Footer Slot -->
+      <div class="modal-footer">
+        <slot name="footer"></slot>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  name: "BaseModal",
+  props: {
+    visible: {
+      type: Boolean,
+      required: true
+    }
+  }
+}
+</script>
+
+<style scoped>
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal-content {
+  background: white;
+  padding: 1rem;
+  border-radius: 8px;
+  min-width: 300px;
+  max-width: 500px;
+}
+.modal-header,
+.modal-body,
+.modal-footer {
+  margin-bottom: 1rem;
+}
+</style>
+
+
+//A..vue
+<template>
+  <div>
+    <button @click="showModal = true">Open Modal</button>
+
+    <BaseModal :visible="showModal">
+      <!-- Header Slot -->
+      <template #header>
+        <h2>Modal Title</h2>
+      </template>
+
+      <!-- Body Slot with Custom Component -->
+      <template #body>
+        <ModalBody>
+          <p>This is dynamic modal body content.</p>
+        </ModalBody>
+      </template>
+
+      <!-- Footer Slot with Custom Component -->
+      <template #footer>
+        <ModalFooter>
+          <button @click="showModal = false">Close</button>
+        </ModalFooter>
+      </template>
+    </BaseModal>
+  </div>
+</template>
+
+<script>
+import BaseModal from './views/modal16june/BaseModal.vue'
+import ModalBody from './views/modal16june/ModalBody.vue'
+import ModalFooter from './views/modal16june/ModalFooter.vue'
+
+export default {
+  name: "AppModal16june",
+  components: {
+    BaseModal,
+    ModalBody,
+    ModalFooter
+  },
+  data() {
+    return {
+      showModal: false
+    }
+  }
+}
+</script>
