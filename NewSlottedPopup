@@ -1,0 +1,125 @@
+<template>
+  <div>
+    <button @click="showModal = true">Open Modal</button>
+
+    <BaseModal
+      v-if="showModal"
+      :title="'My Modal Title'"
+      :visible="showModal"
+    >
+      <!-- Modal Body Content -->
+      <p>This is the body content of the modal.</p>
+    </BaseModal>
+
+    <!-- Render ModalFooter outside of BaseModal -->
+    <ModalFooter
+      v-if="showModal"
+      @cancel="handleCancel"
+      @confirm="handleConfirm"
+    />
+  </div>
+</template>
+
+<script>
+import BaseModal from './BaseModal.vue'
+import ModalFooter from './ModalFooter.vue'
+
+export default {
+  name: 'MyComponent',
+  components: {
+    BaseModal,
+    ModalFooter
+  },
+  data() {
+    return {
+      showModal: false
+    }
+  },
+  methods: {
+    handleCancel() {
+      this.showModal = false
+    },
+    handleConfirm() {
+      alert('Confirmed!')
+      this.showModal = false
+    }
+  }
+}
+</script>
+
+
+//f.v
+<template>
+  <div class="footer-wrapper">
+    <button @click="$emit('cancel')">Cancel</button>
+    <button @click="$emit('confirm')">Confirm</button>
+  </div>
+</template>
+
+<script>
+export default {
+  name: 'ModalFooter',
+}
+</script>
+
+<style scoped>
+.footer-wrapper {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5em;
+}
+</style>
+
+
+//b.v
+
+<template>
+  <div class="modal-overlay" v-if="visible">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3>{{ title }}</h3>
+      </div>
+      <div class="modal-body">
+        <slot />
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  name: 'BaseModal',
+  props: {
+    title: {
+      type: String,
+      required: true
+    },
+    visible: {
+      type: Boolean,
+      required: true
+    }
+  }
+}
+</script>
+
+<style scoped>
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+}
+.modal-container {
+  background: white;
+  margin: 10% auto;
+  padding: 1em;
+  width: 400px;
+  border-radius: 8px;
+}
+.modal-header {
+  margin-bottom: 1em;
+}
+</style>
