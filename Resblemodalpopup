@@ -1,0 +1,288 @@
+uses:
+
+
+<template>
+  <div>
+    <button @click="showModal = true">Open Modal</button>
+    <DraggableResizableModal v-if="showModal">
+      <template #header>
+        <span>Draggable + Resizable Modal</span>
+        <button @click="showModal = false" style="float:right;">✕</button>
+      </template>
+      <template #body>
+        <p>This modal can be dragged and resized from all edges and corners.</p>
+      </template>
+    </DraggableResizableModal>
+  </div>
+</template>
+
+<script>
+import DraggableResizableModal from './DraggableResizableModal.vue';
+
+export default {
+  components: { DraggableResizableModal },
+  data() {
+    return {
+      showModal: false
+    };
+  }
+};
+</script>
+
+
+component:
+
+<template>
+  <div
+    class="modal-overlay"
+    @mousedown.stop
+    @mousemove="onMouseMove"
+    @mouseup="stopDragging"
+  >
+    <div
+      class="modal"
+      :style="modalStyle"
+      ref="modal"
+      @mousedown.stop
+    >
+      <!-- Header (Draggable) -->
+      <div
+        class="modal-header"
+        @mousedown="startDragging($event)"
+      >
+        <slot name="header">Modal Header</slot>
+      </div>
+
+      <!-- Body -->
+      <div class="modal-body">
+        <slot name="body">Modal Body</slot>
+      </div>
+
+      <!-- Resizers -->
+      <div
+        v-for="dir in directions"
+        :key="dir"
+        class="resizer"
+        :class="`resizer-${dir}`"
+        @mousedown="startResizing($event, dir)"
+      ></div>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  name: "DraggableResizableModal",
+  data() {
+    return {
+      x: 100,
+      y: 100,
+      width: 400,
+      height: 300,
+      isDragging: false,
+      isResizing: false,
+      resizeDir: "",
+      startMouseX: 0,
+      startMouseY: 0,
+      startX: 0,
+      startY: 0,
+      startWidth: 0,
+      startHeight: 0,
+      directions: [
+        "top", "right", "bottom", "left",
+        "top-left", "top-right", "bottom-left", "bottom-right"
+      ]
+    };
+  },
+  computed: {
+    modalStyle() {
+      return {
+        top: this.y + "px",
+        left: this.x + "px",
+        width: this.width + "px",
+        height: this.height + "px",
+        position: "absolute"
+      };
+    }
+  },
+  methods: {
+    startDragging(event) {
+      this.isDragging = true;
+      this.startMouseX = event.clientX;
+      this.startMouseY = event.clientY;
+      this.startX = this.x;
+      this.startY = this.y;
+      document.body.style.userSelect = "none";
+    },
+    stopDragging() {
+      this.isDragging = false;
+      this.isResizing = false;
+      document.body.style.userSelect = "";
+    },
+    onMouseMove(event) {
+      if (this.isDragging) {
+        const dx = event.clientX - this.startMouseX;
+        const dy = event.clientY - this.startMouseY;
+        this.x = this.startX + dx;
+        this.y = this.startY + dy;
+      } else if (this.isResizing) {
+        const dx = event.clientX - this.startMouseX;
+        const dy = event.clientY - this.startMouseY;
+
+        switch (this.resizeDir) {
+          case "right":
+            this.width = this.startWidth + dx;
+            break;
+          case "left":
+            this.x = this.startX + dx;
+            this.width = this.startWidth - dx;
+            break;
+          case "bottom":
+            this.height = this.startHeight + dy;
+            break;
+          case "top":
+            this.y = this.startY + dy;
+            this.height = this.startHeight - dy;
+            break;
+          case "top-left":
+            this.x = this.startX + dx;
+            this.y = this.startY + dy;
+            this.width = this.startWidth - dx;
+            this.height = this.startHeight - dy;
+            break;
+          case "top-right":
+            this.y = this.startY + dy;
+            this.width = this.startWidth + dx;
+            this.height = this.startHeight - dy;
+            break;
+          case "bottom-left":
+            this.x = this.startX + dx;
+            this.width = this.startWidth - dx;
+            this.height = this.startHeight + dy;
+            break;
+          case "bottom-right":
+            this.width = this.startWidth + dx;
+            this.height = this.startHeight + dy;
+            break;
+        }
+      }
+    },
+    startResizing(event, direction) {
+      event.stopPropagation();
+      this.isResizing = true;
+      this.resizeDir = direction;
+      this.startMouseX = event.clientX;
+      this.startMouseY = event.clientY;
+      this.startX = this.x;
+      this.startY = this.y;
+      this.startWidth = this.width;
+      this.startHeight = this.height;
+      document.body.style.userSelect = "none";
+    }
+  }
+};
+</script>
+
+<style scoped>
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.3);
+  z-index: 999;
+}
+
+.modal {
+  background: #fff;
+  box-shadow: 0 0 10px #00000066;
+  overflow: hidden;
+  border-radius: 4px;
+  user-select: none;
+}
+
+.modal-header {
+  background: #f2f2f2;
+  padding: 10px;
+  cursor: move;
+  font-weight: bold;
+}
+
+.modal-body {
+  padding: 10px;
+  height: calc(100% - 40px);
+  overflow: auto;
+}
+
+/* Resizer Styles */
+.resizer {
+  position: absolute;
+  background: transparent;
+}
+
+.resizer-top,
+.resizer-bottom {
+  height: 10px;
+  left: 0;
+  right: 0;
+  cursor: ns-resize;
+}
+
+.resizer-top {
+  top: -5px;
+}
+.resizer-bottom {
+  bottom: -5px;
+}
+
+.resizer-left,
+.resizer-right {
+  width: 10px;
+  top: 0;
+  bottom: 0;
+  cursor: ew-resize;
+}
+
+.resizer-left {
+  left: -5px;
+}
+.resizer-right {
+  right: -5px;
+}
+
+.resizer-top-left,
+.resizer-top-right,
+.resizer-bottom-left,
+.resizer-bottom-right {
+  width: 10px;
+  height: 10px;
+  position: absolute;
+  cursor: nwse-resize;
+}
+
+.resizer-top-left {
+  top: -5px;
+  left: -5px;
+  cursor: nwse-resize;
+}
+
+.resizer-top-right {
+  top: -5px;
+  right: -5px;
+  cursor: nesw-resize;
+}
+
+.resizer-bottom-left {
+  bottom: -5px;
+  left: -5px;
+  cursor: nesw-resize;
+}
+
+.resizer-bottom-right {
+  bottom: -5px;
+  right: -5px;
+  cursor: nwse-resize;
+}
+
+</style>
