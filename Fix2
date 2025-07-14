@@ -1,0 +1,143 @@
+<template>
+  <div class="modal-overlay" @mousemove="onMouseMove" @mouseup="stopAllActions">
+    <div
+      class="modal"
+      :style="modalStyle"
+      @mousedown.stop
+    >
+      <!-- Draggable Header -->
+      <div class="modal-header" @mousedown="startDragging($event)">
+        <slot name="header">Modal Header</slot>
+      </div>
+
+      <!-- Content Body -->
+      <div class="modal-body">
+        <slot name="body">Modal Body</slot>
+      </div>
+
+      <!-- Resizers (corners + edges) -->
+      <div
+        v-for="dir in directions"
+        :key="dir"
+        class="resizer"
+        :class="`resizer-${dir}`"
+        @mousedown="startResizing($event, dir)"
+      />
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  name: "DraggableResizableModal",
+  data() {
+    return {
+      x: 100,
+      y: 100,
+      width: 400,
+      height: 300,
+      minWidth: 400,
+      minHeight: 300,
+      isDragging: false,
+      isResizing: false,
+      resizeDir: "",
+      startMouseX: 0,
+      startMouseY: 0,
+      startX: 0,
+      startY: 0,
+      startWidth: 0,
+      startHeight: 0,
+      directions: [
+        "top", "right", "bottom", "left",
+        "top-left", "top-right", "bottom-left", "bottom-right"
+      ]
+    };
+  },
+  computed: {
+    modalStyle() {
+      return {
+        top: this.y + "px",
+        left: this.x + "px",
+        width: this.width + "px",
+        height: this.height + "px",
+        position: "absolute"
+      };
+    }
+  },
+  methods: {
+    startDragging(event) {
+      this.isDragging = true;
+      this.startMouseX = event.clientX;
+      this.startMouseY = event.clientY;
+      this.startX = this.x;
+      this.startY = this.y;
+      document.body.style.userSelect = "none";
+    },
+    stopAllActions() {
+      this.isDragging = false;
+      this.isResizing = false;
+      document.body.style.userSelect = "";
+    },
+    startResizing(event, dir) {
+      this.isResizing = true;
+      this.resizeDir = dir;
+      this.startMouseX = event.clientX;
+      this.startMouseY = event.clientY;
+      this.startX = this.x;
+      this.startY = this.y;
+      this.startWidth = this.width;
+      this.startHeight = this.height;
+      document.body.style.userSelect = "none";
+    },
+    onMouseMove(event) {
+      const dx = event.clientX - this.startMouseX;
+      const dy = event.clientY - this.startMouseY;
+
+      if (this.isDragging) {
+        this.x = this.startX + dx;
+        this.y = this.startY + dy;
+      }
+
+      if (this.isResizing) {
+        let newX = this.startX;
+        let newY = this.startY;
+        let newWidth = this.startWidth;
+        let newHeight = this.startHeight;
+
+        const dir = this.resizeDir;
+
+        if (dir.includes("right")) {
+          newWidth = this.startWidth + dx;
+        }
+        if (dir.includes("left")) {
+          newWidth = this.startWidth - dx;
+          newX = this.startX + dx;
+        }
+        if (dir.includes("bottom")) {
+          newHeight = this.startHeight + dy;
+        }
+        if (dir.includes("top")) {
+          newHeight = this.startHeight - dy;
+          newY = this.startY + dy;
+        }
+
+        // Enforce minimums
+        if (newWidth < this.minWidth) {
+          newX = this.x;
+          newWidth = this.minWidth;
+        }
+        if (newHeight < this.minHeight) {
+          newY = this.y;
+          newHeight = this.minHeight;
+        }
+
+        // Apply final
+        this.width = newWidth;
+        this.height = newHeight;
+        this.x = newX;
+        this.y = newY;
+      }
+    }
+  }
+};
+</script>
