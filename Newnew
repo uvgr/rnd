@@ -1,0 +1,241 @@
+<template>
+  <div class="overlay" @mousemove="onMouseMove" @mouseup="onMouseUp">
+    <div
+      class="modal"
+      :style="modalStyle"
+      @mousedown.stop
+    >
+      <!-- Header (Drag) -->
+      <div class="modal-header" @mousedown="startDrag($event)">
+        <slot name="header">Modal Header</slot>
+      </div>
+
+      <!-- Body -->
+      <div class="modal-body">
+        <slot name="body">Modal Content</slot>
+      </div>
+
+      <!-- Resizers -->
+      <div
+        v-for="dir in directions"
+        :key="dir"
+        :class="['resizer', `resizer-${dir}`]"
+        @mousedown="startResize($event, dir)"
+      />
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  name: 'ResizableDraggableModal',
+  data() {
+    return {
+      x: 100,
+      y: 100,
+      width: 400,
+      height: 300,
+      minWidth: 300,
+      minHeight: 200,
+      isDragging: false,
+      isResizing: false,
+      resizeDirection: '',
+      startMouseX: 0,
+      startMouseY: 0,
+      startX: 0,
+      startY: 0,
+      startWidth: 0,
+      startHeight: 0,
+      directions: [
+        'top', 'right', 'bottom', 'left',
+        'top-left', 'top-right', 'bottom-left', 'bottom-right'
+      ]
+    };
+  },
+  computed: {
+    modalStyle() {
+      return {
+        top: this.y + 'px',
+        left: this.x + 'px',
+        width: this.width + 'px',
+        height: this.height + 'px',
+        position: 'absolute'
+      };
+    }
+  },
+  methods: {
+    startDrag(e) {
+      this.isDragging = true;
+      this.startMouseX = e.clientX;
+      this.startMouseY = e.clientY;
+      this.startX = this.x;
+      this.startY = this.y;
+      document.body.style.userSelect = 'none';
+    },
+    startResize(e, direction) {
+      this.isResizing = true;
+      this.resizeDirection = direction;
+      this.startMouseX = e.clientX;
+      this.startMouseY = e.clientY;
+      this.startX = this.x;
+      this.startY = this.y;
+      this.startWidth = this.width;
+      this.startHeight = this.height;
+      document.body.style.userSelect = 'none';
+    },
+    onMouseMove(e) {
+      const dx = e.clientX - this.startMouseX;
+      const dy = e.clientY - this.startMouseY;
+
+      if (this.isDragging) {
+        this.x = this.startX + dx;
+        this.y = this.startY + dy;
+      }
+
+      if (this.isResizing) {
+        let newWidth = this.startWidth;
+        let newHeight = this.startHeight;
+        let newX = this.startX;
+        let newY = this.startY;
+
+        if (this.resizeDirection.includes('right')) {
+          newWidth = this.startWidth + dx;
+        }
+        if (this.resizeDirection.includes('left')) {
+          newWidth = this.startWidth - dx;
+          newX = this.startX + dx;
+        }
+        if (this.resizeDirection.includes('bottom')) {
+          newHeight = this.startHeight + dy;
+        }
+        if (this.resizeDirection.includes('top')) {
+          newHeight = this.startHeight - dy;
+          newY = this.startY + dy;
+        }
+
+        // Enforce min sizes
+        if (newWidth < this.minWidth) {
+          newWidth = this.minWidth;
+          if (this.resizeDirection.includes('left')) {
+            newX = this.x + (this.width - this.minWidth);
+          }
+        }
+        if (newHeight < this.minHeight) {
+          newHeight = this.minHeight;
+          if (this.resizeDirection.includes('top')) {
+            newY = this.y + (this.height - this.minHeight);
+          }
+        }
+
+        this.width = newWidth;
+        this.height = newHeight;
+        this.x = newX;
+        this.y = newY;
+      }
+    },
+    onMouseUp() {
+      this.isDragging = false;
+      this.isResizing = false;
+      document.body.style.userSelect = '';
+    }
+  }
+};
+</script>
+
+<style scoped>
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.2);
+  z-index: 999;
+}
+
+.modal {
+  background-color: white;
+  border: 1px solid #ccc;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+
+.modal-header {
+  padding: 10px;
+  background: #f0f0f0;
+  cursor: move;
+  user-select: none;
+  font-weight: bold;
+}
+
+.modal-body {
+  padding: 10px;
+  height: calc(100% - 40px);
+  overflow: auto;
+}
+
+/* Resizer styles */
+.resizer {
+  position: absolute;
+  background: transparent;
+}
+
+.resizer-top,
+.resizer-bottom {
+  height: 8px;
+  left: 0;
+  right: 0;
+  cursor: ns-resize;
+}
+.resizer-top {
+  top: -4px;
+}
+.resizer-bottom {
+  bottom: -4px;
+}
+
+.resizer-left,
+.resizer-right {
+  width: 8px;
+  top: 0;
+  bottom: 0;
+  cursor: ew-resize;
+}
+.resizer-left {
+  left: -4px;
+}
+.resizer-right {
+  right: -4px;
+}
+
+.resizer-top-left,
+.resizer-top-right,
+.resizer-bottom-left,
+.resizer-bottom-right {
+  width: 12px;
+  height: 12px;
+  position: absolute;
+  background: transparent;
+}
+
+.resizer-top-left {
+  top: -6px;
+  left: -6px;
+  cursor: nwse-resize;
+}
+.resizer-top-right {
+  top: -6px;
+  right: -6px;
+  cursor: nesw-resize;
+}
+.resizer-bottom-left {
+  bottom: -6px;
+  left: -6px;
+  cursor: nesw-resize;
+}
+.resizer-bottom-right {
+  bottom: -6px;
+  right: -6px;
+  cursor: nwse-resize;
+}
+</style>
