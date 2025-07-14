@@ -1,0 +1,73 @@
+onMouseMove(event) {
+  if (this.isDragging) {
+    const dx = event.clientX - this.startMouseX;
+    const dy = event.clientY - this.startMouseY;
+    this.x = this.startX + dx;
+    this.y = this.startY + dy;
+  } else if (this.isResizing) {
+    const dx = event.clientX - this.startMouseX;
+    const dy = event.clientY - this.startMouseY;
+
+    let newWidth = this.startWidth;
+    let newHeight = this.startHeight;
+    let newX = this.startX;
+    let newY = this.startY;
+
+    switch (this.resizeDir) {
+      case "right":
+        newWidth = this.startWidth + dx;
+        break;
+      case "left":
+        newWidth = this.startWidth - dx;
+        newX = this.startX + dx;
+        break;
+      case "bottom":
+        newHeight = this.startHeight + dy;
+        break;
+      case "top":
+        newHeight = this.startHeight - dy;
+        newY = this.startY + dy;
+        break;
+      case "top-left":
+        newWidth = this.startWidth - dx;
+        newHeight = this.startHeight - dy;
+        newX = this.startX + dx;
+        newY = this.startY + dy;
+        break;
+      case "top-right":
+        newWidth = this.startWidth + dx;
+        newHeight = this.startHeight - dy;
+        newY = this.startY + dy;
+        break;
+      case "bottom-left":
+        newWidth = this.startWidth - dx;
+        newHeight = this.startHeight + dy;
+        newX = this.startX + dx;
+        break;
+      case "bottom-right":
+        newWidth = this.startWidth + dx;
+        newHeight = this.startHeight + dy;
+        break;
+    }
+
+    // ✅ Clamp size to minWidth/minHeight
+    if (newWidth < this.minWidth) {
+      newWidth = this.minWidth;
+      if (["left", "top-left", "bottom-left"].includes(this.resizeDir)) {
+        newX = this.x + (this.width - this.minWidth);
+      }
+    }
+
+    if (newHeight < this.minHeight) {
+      newHeight = this.minHeight;
+      if (["top", "top-left", "top-right"].includes(this.resizeDir)) {
+        newY = this.y + (this.height - this.minHeight);
+      }
+    }
+
+    this.width = newWidth;
+    this.height = newHeight;
+    this.x = newX;
+    this.y = newY;
+  }
+}
