@@ -1,0 +1,370 @@
+//App vue
+<script setup>
+import DataTable from './components/DataTable.vue';
+
+const columns = [
+  { key: 'name', label: 'Name' },
+  { key: 'age', label: 'Age' },
+  { key: 'email', label: 'Email' },
+  { key: 'country', label: 'Country' },
+  { key: 'phone', label: 'phone' },
+  { key: 'address', label: 'address' }
+  
+];
+
+const rows = [
+  { name: 'Alice', age: 30, email: 'alice@example.com', country: 'india', phone: '+91 9289 8299 21',address: 'mumbai zld, new GS, india'},
+  { name: 'Bob', age: 25, email: 'bob@example.com' , country: 'india', phone: '+91 9289 8299 21',address: 'mumbai zld, new GS, india'},
+    { name: 'Bette Nicka', age: 130, email: 'alice@example.com', country: 'india', phone: '+91 9289 8299 21',address: 'mumbai zld, new GS, india'},
+  { name: 'Veronika Inouye', age: 225, email: 'bob@example.com' , country: 'india', phone: '+91 9289 8299 21',address: 'mumbai zld, new GS, india'},
+    { name: 'Willard Kolmetz', age: 230, email: 'alice@example.com', country: 'india', phone: '+91 9289 8299 21',address: 'mumbai zld, new GS, india'},
+  { name: 'Maryann Royster', age: 325, email: 'bob@example.com' , country: 'india', phone: '+91 9289 8299 21',address: 'mumbai zld, new GS, india'},
+    { name: 'Alisha Slusarski', age: 380, email: 'alice@example.com', country: 'india', phone: '+91 9289 8299 21',address: 'mumbai zld, new GS, india'},
+  { name: 'Allene Iturbide', age: 55, email: 'bob@example.com' , country: 'india', phone: '+91 9289 8299 21',address: 'mumbai zld, new GS, india'},
+    { name: 'Chanel Caudy', age: 40, email: 'alice@example.com', country: 'india', phone: '+91 9289 8299 21',address: 'mumbai zld, new GS, india'},
+  { name: 'Ezekiel Chui', age: 75, email: 'bob@example.com' , country: 'india', phone: '+91 9289 8299 21',address: 'mumbai zld, new GS, india'},
+    { name: 'Willow Kusko', age: 440, email: 'alice@example.com', country: 'india', phone: '+91 9289 8299 21',address: 'mumbai zld, new GS, india'},
+  { name: 'Bernardo Figeroa', age: 45, email: 'bob@example.com' , country: 'india', phone: '+91 9289 8299 21',address: 'mumbai zld, new GS, india'},
+];
+
+const handleRowClick = (row) => {
+  alert(`Row clicked: ${row.name}`);
+};
+
+const handleCellClick = ({ key, value }) => {
+  alert(`Cell clicked: ${key} = ${value}`);
+};
+</script>
+
+<template>
+<DataTable :columns="columns" :rows="rows">
+  <template #cell-email="{ value }">
+    <a :href="`mailto:${value}`" style="color: blue">{{ value }}</a>
+  </template>
+</DataTable>
+</template>
+
+//DataTable.vue
+<template>
+  <div class="datatable-wrapper">
+    <!-- Search -->
+    <input
+      v-model="searchQuery"
+      class="search-box"
+      type="text"
+      placeholder="Search..."
+    />
+
+    <!-- Column Filters -->
+    <div class="column-filter">
+      <label v-for="col in allColumns" :key="col.key">
+        <input type="checkbox" v-model="visibleColumnKeys" :value="col.key" />
+        {{ col.label }}
+      </label>
+    </div>
+
+    <!-- Table -->
+    <div class="table-container">
+      <table class="custom-table">
+        <thead>
+          <tr>
+            <th><input type="checkbox" v-model="selectAll" @change="toggleSelectAll" /></th>
+           <th
+  v-for="(col, index) in visibleColumns"
+  :key="col.key"
+  class="column-header"
+  draggable
+  @dragstart="dragStart(index)"
+  @dragover.prevent
+  @drop="dragDrop(index)"
+>
+  <div class="header-content" @click.stop="sortBy(col.key)">
+    <span>{{ col.label }}</span>
+    <span v-if="sortKey === col.key">
+      {{ sortOrder === 'asc' ? '▲' : '▼' }}
+    </span>
+  </div>
+
+  <!-- Column move buttons -->
+  <div class="column-actions">
+    <button @click.stop="moveColumn(index, 0)" title="Move to first">⏮</button>
+    <button @click.stop="moveColumn(index, index - 1)" :disabled="index === 0" title="Move left">⬅️</button>
+    <button @click.stop="moveColumn(index, index + 1)" :disabled="index === visibleColumns.length - 1" title="Move right">➡️</button>
+    <button @click.stop="moveColumn(index, visibleColumns.length - 1)" title="Move to last">⏭</button>
+  </div>
+
+  <span
+    v-if="visibleColumns.length > 1"
+    class="close-btn"
+    @click.stop="removeColumn(col.key)"
+    title="Hide column"
+  >
+    ❌
+  </span>
+</th>
+          </tr>
+        </thead>
+       <tbody>
+  <tr
+    v-for="(row, rowIndex) in filteredPaginatedData"
+    :key="rowIndex"
+    :class="{ 'row-selected': selectedRows.includes(row) }"
+    @click="onRowClick(row)"
+  >
+    <td>
+      <input
+        type="checkbox"
+        :checked="selectedRows.includes(row)"
+        @change="toggleRowSelection(row)"
+        @click.stop
+      />
+    </td>
+    <td
+      v-for="col in visibleColumns"
+      :key="col.key"
+      @click.stop="onCellClick(row[col.key], col.key, row)"
+    >
+      <slot :name="`cell-${col.key}`" :value="row[col.key]" :row="row">
+        {{ row[col.key] }}
+      </slot>
+    </td>
+  </tr>
+</tbody>
+        <tfoot>
+          <tr>
+            <td :colspan="visibleColumns.length + 1">Total: {{ sortedData.length }}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <!-- Pagination + Export -->
+    <div class="datatable-footer">
+      <div>
+        <button @click="exportCSV">Export CSV</button>
+      </div>
+      <div class="pagination">
+        <button @click="currentPage--" :disabled="currentPage === 1">Previous</button>
+        <span>Page {{ currentPage }} of {{ totalPages }}</span>
+        <button @click="currentPage++" :disabled="currentPage === totalPages">Next</button>
+      </div>
+    </div>
+  </div>
+</template>
+<script setup>
+import { ref, computed, watch } from 'vue';
+
+const props = defineProps({
+  columns: Array,
+  rows: Array,
+  perPage: {
+    type: Number,
+    default: 5
+  }
+});
+const emit = defineEmits(['row-click', 'cell-click']);
+
+const allColumns = props.columns;
+const visibleColumnKeys = ref(allColumns.map(c => c.key));
+const selectedRows = ref([]);
+const selectAll = ref(false);
+const searchQuery = ref('');
+const currentPage = ref(1);
+const sortKey = ref(null);
+const sortOrder = ref('asc');
+const dragIndex = ref(null);
+
+watch(selectAll, () => {
+  selectedRows.value = selectAll.value ? filteredData.value.slice() : [];
+});
+
+const visibleColumns = computed(() =>
+  visibleColumnKeys.value.map(key => allColumns.find(col => col.key === key))
+);
+
+const sortBy = (key) => {
+  if (sortKey.value === key) {
+    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc';
+  } else {
+    sortKey.value = key;
+    sortOrder.value = 'asc';
+  }
+};
+
+const sortedData = computed(() => {
+  const data = [...props.rows];
+  if (!sortKey.value) return data;
+  return data.sort((a, b) => {
+    if (a[sortKey.value] < b[sortKey.value]) return sortOrder.value === 'asc' ? -1 : 1;
+    if (a[sortKey.value] > b[sortKey.value]) return sortOrder.value === 'asc' ? 1 : -1;
+    return 0;
+  });
+});
+
+const filteredData = computed(() => {
+  if (!searchQuery.value) return sortedData.value;
+  return sortedData.value.filter(row =>
+    Object.values(row).some(val =>
+      String(val).toLowerCase().includes(searchQuery.value.toLowerCase())
+    )
+  );
+});
+const moveColumn = (fromIndex, toIndex) => {
+  if (toIndex < 0 || toIndex >= visibleColumnKeys.value.length || fromIndex === toIndex) return;
+  const updated = [...visibleColumnKeys.value];
+  const [moved] = updated.splice(fromIndex, 1);
+  updated.splice(toIndex, 0, moved);
+  visibleColumnKeys.value = updated;
+};
+const totalPages = computed(() =>
+  Math.ceil(filteredData.value.length / props.perPage)
+);
+
+const filteredPaginatedData = computed(() => {
+  const start = (currentPage.value - 1) * props.perPage;
+  return filteredData.value.slice(start, start + props.perPage);
+});
+
+const dragStart = (index) => dragIndex.value = index;
+
+const dragDrop = (dropIndex) => {
+  const updated = [...visibleColumnKeys.value];
+  const [dragged] = updated.splice(dragIndex.value, 1);
+  updated.splice(dropIndex, 0, dragged);
+  visibleColumnKeys.value = updated;
+};
+
+const toggleSelectAll = () => {
+  selectAll.value = !selectAll.value;
+};
+
+const onRowClick = (row) => emit('row-click', row);
+const onCellClick = (value, key) => emit('cell-click', { value, key });
+
+function exportCSV() {
+  const header = visibleColumns.value.map(col => `"${col.label}"`).join(',');
+  const rows = selectedRows.value.length ? selectedRows.value : filteredData.value;
+
+  const data = rows.map(row =>
+    visibleColumns.value.map(col => `"${row[col.key]}"`).join(',')
+  ).join('\n');
+
+  const csvContent = `${header}\n${data}`;
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.setAttribute('download', 'table_export.csv');
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+const removeColumn = (key) => {
+  if (visibleColumnKeys.value.length <= 1) return;
+  visibleColumnKeys.value = visibleColumnKeys.value.filter(k => k !== key);
+};
+</script>
+<style scoped>
+.datatable-wrapper {
+  font-family: sans-serif;
+  max-width: 100%;
+  border: 1px solid #ccc;
+  padding: 1rem;
+  background: white;
+}
+
+.search-box {
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.column-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.table-container {
+  overflow-x: auto;
+}
+
+.custom-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1rem;
+}
+
+.custom-table th,
+.custom-table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+}
+
+.custom-table thead {
+  background-color: #f3f3f3;
+  font-weight: bold;
+}
+
+.custom-table tbody tr:hover {
+  background-color: #f0f8ff;
+}
+
+.custom-table tfoot {
+  background: #f3f3f3;
+  font-weight: bold;
+  position: sticky;
+  bottom: 0;
+}
+
+.datatable-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pagination button {
+  margin: 0 5px;
+  padding: 6px 12px;
+  border: none;
+  background-color: #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.column-header {
+  position: relative;
+  white-space: nowrap;
+}
+
+.header-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.close-btn {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 12px;
+  color: #888;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.close-btn:hover {
+  color: red;
+}.row-selected {
+  background-color: #e8fbe8 !important;
+  transition: background 0.2s;
+}
+</style>
