@@ -1,0 +1,90 @@
+<template>
+  <thead>
+    <tr>
+      <th
+        v-for="(col, index) in localColumns"
+        :key="col.field"
+        draggable="true"
+        @dragstart="onDragStart(index)"
+        @dragover.prevent="onDragOver(index, $event)"
+        @drop="onDrop(index)"
+      >
+        <div class="header-content">
+          <span class="header-label">{{ col.label }}</span>
+          <button class="close-btn" @click.stop="$emit('remove-column', col.field)">×</button>
+          <input
+            v-if="col.searchable"
+            class="column-search"
+            :placeholder="`Search ${col.label}`"
+            @input="$emit('column-search', { field: col.field, value: $event.target.value })"
+          />
+        </div>
+      </th>
+    </tr>
+  </thead>
+</template>
+
+<script>
+export default {
+  name: 'TableHeader',
+  props: {
+    columns: Array,
+    columnFilters: Object
+  },
+  data() {
+    return {
+      localColumns: [...this.columns],
+      dragIndex: null
+    }
+  },
+  watch: {
+    columns: {
+      immediate: true,
+      handler(newVal) {
+        this.localColumns = [...newVal]
+      }
+    }
+  },
+  methods: {
+    onDragStart(index) {
+      this.dragIndex = index
+    },
+    onDragOver(index, event) {
+      event.dataTransfer.dropEffect = 'move'
+    },
+    onDrop(dropIndex) {
+      if (this.dragIndex === null || this.dragIndex === dropIndex) return
+      const updated = [...this.localColumns]
+      const [moved] = updated.splice(this.dragIndex, 1)
+      updated.splice(dropIndex, 0, moved)
+      this.localColumns = updated
+      this.$emit('reorder', [...updated])
+      this.dragIndex = null
+    }
+  }
+}
+</script>
+
+<style scoped>
+.header-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.header-label {
+  font-weight: bold;
+}
+.close-btn {
+  background: transparent;
+  border: none;
+  color: red;
+  cursor: pointer;
+  align-self: flex-end;
+}
+.column-search {
+  margin-top: 4px;
+  padding: 2px;
+}
+</style>
+
+
