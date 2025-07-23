@@ -1,0 +1,125 @@
+
+<template>
+  <div class="table-wrapper">
+    <input v-model="globalSearch" placeholder="Global Search" class="global-search" />
+    <button @click="resetColumns" class="reset-btn">Reset Columns</button>
+
+    <div class="table-scroll">
+      <table>
+        <TableHeader
+          :columns="orderedColumns"
+          :columnFilters="columnFilters"
+          @column-search="onColumnSearch"
+          @remove-column="removeColumn"
+          @reorder="reorderColumns"
+        />
+        <TableBody :columns="orderedColumns" :rows="paginatedRows" />
+      </table>
+    </div>
+
+    <Pagination
+      :current-page="currentPage"
+      :total-pages="totalPages"
+      @change="onPageChange"
+    />
+
+    <div class="per-page">
+      <label>Per Page:</label>
+      <select v-model.number="perPage">
+        <option v-for="option in [5, 10, 20]" :key="option" :value="option">{{ option }}</option>
+      </select>
+    </div>
+  </div>
+</template>
+
+<script>
+import TableHeader from './TableHeader.vue'
+import TableBody from './TableBody.vue'
+import Pagination from './Pagination.vue'
+
+export default {
+  name: 'BaseTable',
+  components: { TableHeader, TableBody, Pagination },
+  props: {
+    rows: Array,
+    columns: Array
+  },
+  data() {
+    return {
+      globalSearch: '',
+      columnFilters: {},
+      currentPage: 1,
+      perPage: 5,
+      orderedColumns: [...this.columns],
+      initialColumns: [...this.columns]
+    }
+  },
+  computed: {
+    searchableFields() {
+      return this.orderedColumns.filter(c => c.searchable).map(c => c.field)
+    },
+    filteredRows() {
+      return this.rows.filter(row => {
+        const globalMatch = this.globalSearch
+          ? this.searchableFields.some(field =>
+              String(row[field] ?? '').toLowerCase().includes(this.globalSearch.toLowerCase())
+            )
+          : true
+
+        const columnMatch = Object.entries(this.columnFilters).every(([field, val]) =>
+          String(row[field] ?? '').toLowerCase().includes(val.toLowerCase())
+        )
+
+        return globalMatch && columnMatch
+      })
+    },
+    totalPages() {
+      return Math.ceil(this.filteredRows.length / this.perPage) || 1
+    },
+    paginatedRows() {
+      const start = (this.currentPage - 1) * this.perPage
+      return this.filteredRows.slice(start, start + this.perPage)
+    }
+  },
+  methods: {
+    onPageChange(page) {
+      this.currentPage = page
+    },
+    onColumnSearch({ field, value }) {
+      this.$set(this.columnFilters, field, value)
+      this.currentPage = 1
+    },
+    removeColumn(field) {
+      this.orderedColumns = this.orderedColumns.filter(c => c.field !== field)
+      this.$delete(this.columnFilters, field)
+    },
+    reorderColumns(newOrder) {
+      this.orderedColumns = newOrder
+    },
+    resetColumns() {
+      this.orderedColumns = [...this.initialColumns]
+      this.columnFilters = {}
+    }
+  }
+}
+</script>
+
+<style scoped>
+.table-wrapper {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid #ddd;
+  padding: 10px;
+}
+.reset-btn {
+  margin: 10px 0;
+}
+.per-page {
+  margin-top: 10px;
+}
+.global-search {
+  margin-bottom: 10px;
+  padding: 4px;
+}
+</style>
+
