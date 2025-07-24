@@ -1,0 +1,65 @@
+<template>
+  <div>
+    <BaseTable
+      :rows="tableData"
+      :columns="tableColumns"
+      @row-click="onRowClick"
+      @cell-click="onCellClick"
+    />
+
+    <div v-if="selectedRow" class="details-panel">
+      <h3>Selected Row</h3>
+      <pre>{{ selectedRow }}</pre>
+    </div>
+
+    <div v-if="selectedCell" class="details-panel">
+      <h3>Selected Cell</h3>
+      <p><strong>Column:</strong> {{ selectedCell.column.label }}</p>
+      <p><strong>Value:</strong> {{ selectedCell.value }}</p>
+    </div>
+  </div>
+</template>
+
+<script>
+import BaseTable from './components/BaseTable.vue'
+
+export default {
+  components: { BaseTable },
+  data() {
+    return {
+      tableColumns: [
+        { label: 'Name', field: 'name', searchable: true },
+        { label: 'Email', field: 'email', searchable: true },
+        { label: 'Age', field: 'age', searchable: false }
+      ],
+      tableData: [
+        { name: 'Alice', email: 'alice@example.com', age: 25 },
+        { name: 'Bob', email: 'bob@example.com', age: 30 },
+        { name: 'Carol', email: 'carol@example.com', age: 27 }
+      ],
+      selectedRow: null,
+      selectedCell: null
+    }
+  },
+  methods: {
+    onRowClick(row) {
+      this.selectedRow = row
+      this.selectedCell = null
+    },
+    onCellClick(payload) {
+      this.selectedCell = payload
+      this.selectedRow = null
+    }
+  }
+}
+</script>
+
+<style scoped>
+.details-panel {
+  margin-top: 20px;
+  padding: 10px;
+  border: 1px solid #bbb;
+  background-color: #f9f9f9;
+}
+</style>
+
