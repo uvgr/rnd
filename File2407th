@@ -1,0 +1,93 @@
+<template>
+  <thead>
+    <tr>
+      <th
+        v-for="(col, index) in columns"
+        :key="col.field"
+        draggable="true"
+        @dragstart="dragStart(index)"
+        @dragover.prevent="dragOver(index)"
+        @drop="drop(index)"
+      >
+        <div class="th-content">
+          <span class="th-label">{{ col.label }}</span>
+          <button class="close-btn" @click.stop="$emit('remove-column', col.field)">×</button>
+          <input
+            v-if="col.searchable"
+            :placeholder="`Search ${col.label}`"
+            @input="$emit('column-search', { field: col.field, value: $event.target.value })"
+          />
+        </div>
+        <div
+          v-if="dragOverIndex === index && dragOverIndex !== dragStartIndex"
+          class="drag-indicator"
+        ></div>
+      </th>
+    </tr>
+  </thead>
+</template>
+
+<script>
+export default {
+  name: 'TableHeader',
+  props: {
+    columns: Array,
+    columnFilters: Object
+  },
+  data() {
+    return {
+      dragStartIndex: null,
+      dragOverIndex: null
+    }
+  },
+  methods: {
+    dragStart(index) {
+      this.dragStartIndex = index
+    },
+    dragOver(index) {
+      this.dragOverIndex = index
+    },
+    drop(index) {
+      const newCols = [...this.columns]
+      const [moved] = newCols.splice(this.dragStartIndex, 1)
+      newCols.splice(index, 0, moved)
+      this.$emit('reorder', newCols)
+      this.dragStartIndex = null
+      this.dragOverIndex = null
+    }
+  }
+}
+</script>
+
+<style scoped>
+.th-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.th-label {
+  flex-grow: 1;
+}
+.close-btn {
+  background: transparent;
+  border: none;
+  color: #999;
+  font-size: 14px;
+  cursor: pointer;
+  margin-left: 5px;
+  padding: 0;
+  line-height: 1;
+}
+.close-btn:hover {
+  color: #e00;
+}
+.drag-indicator {
+  width: 2px;
+  height: 100%;
+  background-color: blue;
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+</style>
+
