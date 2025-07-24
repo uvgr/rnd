@@ -1,0 +1,31 @@
+<template>
+  <tbody>
+    <tr
+      v-for="(row, rIndex) in rows"
+      :key="rIndex"
+      @click="$emit('row-click', row)"
+    >
+      <td
+        v-for="col in columns"
+        :key="col.field"
+        @click.stop="$emit('cell-click', {
+          row,
+          column: col,
+          value: row[col.field]
+        })"
+      >
+        {{ row[col.field] }}
+      </td>
+    </tr>
+  </tbody>
+</template>
+
+<script>
+export default {
+  name: 'TableBody',
+  props: {
+    rows: Array,
+    columns: Array
+  }
+}
+</script>
