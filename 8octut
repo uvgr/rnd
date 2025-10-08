@@ -1,0 +1,249 @@
+<template>
+  <div class="user-table-container">
+    <!-- 🔍 Global Controls -->
+    <div class="table-top-bar">
+      <input
+        v-model="globalSearch"
+        type="text"
+        class="global-search"
+        placeholder="Search all columns..."
+      />
+      <button class="reset-btn" @click="resetColumns">Reset Columns</button>
+    </div>
+
+    <!-- 🧩 Base Table -->
+    <BaseTable @reorder-columns="reorderColumns">
+      <!-- Header -->
+      <template #header="{ onDragStart, onDragOver, onDrop }">
+        <tr>
+          <BaseTableHeaderCell
+            v-for="(col, index) in columns"
+            :key="col.key"
+            :index="index"
+            :on-drag-start="onDragStart"
+            :on-drag-over="onDragOver"
+            :on-drop="onDrop"
+            @remove-column="removeColumn"
+          >
+            {{ col.label }}
+          </BaseTableHeaderCell>
+        </tr>
+
+        <!-- Column Filters (Top) -->
+        <tr class="filter-row">
+          <th v-for="col in columns" :key="col.key">
+            <input
+              type="text"
+              v-model="columnFilters[col.key]"
+              placeholder="Filter..."
+              class="column-filter"
+            />
+          </th>
+        </tr>
+      </template>
+
+      <!-- Table Body -->
+      <tbody>
+        <BaseTableRow
+          v-for="user in paginatedFilteredUsers"
+          :key="user.id"
+          :row-data="user"
+          :row-events="tableConfig.rowEvents"
+          :selected-rows="selectedRows"
+          @row-selected="toggleRowSelection"
+        >
+          <BaseTableCell
+            v-for="col in columns"
+            :key="col.key"
+            :cell-data="user[col.key]"
+            :row-data="user"
+            :column="col"
+            :cell-events="tableConfig.cellEvents"
+          >
+            {{ user[col.key] }}
+          </BaseTableCell>
+        </BaseTableRow>
+      </tbody>
+
+      <!-- 🆕 Bottom Filters Row -->
+      <tfoot>
+        <tr class="filter-row bottom-filters">
+          <td v-for="col in columns" :key="col.key">
+            <input
+              type="text"
+              v-model="bottomColumnFilters[col.key]"
+              placeholder="Filter..."
+              class="column-filter"
+            />
+          </td>
+        </tr>
+      </tfoot>
+    </BaseTable>
+
+    <!-- Pagination -->
+    <BasePagination
+      :total-records="filteredUsers.length"
+      v-model:perPage="perPage"
+      v-model:currentPage="currentPage"
+    />
+  </div>
+</template>
+
+<script>
+import BaseTable from "./BaseTable.vue";
+import BaseTableRow from "./BaseTableRow.vue";
+import BaseTableCell from "./BaseTableCell.vue";
+import BaseTableHeaderCell from "./BaseTableHeaderCell.vue";
+import BasePagination from "./BasePagination.vue";
+
+export default {
+  name: "UserTable",
+  components: {
+    BaseTable,
+    BaseTableRow,
+    BaseTableCell,
+    BaseTableHeaderCell,
+    BasePagination,
+  },
+  data() {
+    return {
+      defaultColumns: [
+        { key: "id", label: "ID" },
+        { key: "name", label: "Name" },
+        { key: "age", label: "Age" },
+        { key: "country", label: "Country" },
+      ],
+      columns: [
+        { key: "id", label: "ID" },
+        { key: "name", label: "Name" },
+        { key: "age", label: "Age" },
+        { key: "country", label: "Country" },
+      ],
+
+      users: [
+        { id: 1, name: "John", age: 29, country: "India" },
+        { id: 2, name: "Sara", age: 24, country: "USA" },
+        { id: 3, name: "Raj", age: 35, country: "UK" },
+        { id: 4, name: "Amit", age: 31, country: "India" },
+        { id: 5, name: "Mary", age: 22, country: "Canada" },
+        { id: 6, name: "Liam", age: 27, country: "Australia" },
+        { id: 7, name: "Emma", age: 30, country: "France" },
+      ],
+
+      currentPage: 1,
+      perPage: 5,
+      globalSearch: "",
+      columnFilters: {},
+      bottomColumnFilters: {}, // 👈 new bottom filters
+      selectedRows: [],
+
+      tableConfig: {
+        rowEvents: {
+          click: (row) => alert(`Row clicked: ${row.name}`),
+        },
+        cellEvents: {
+          click: (cell, row, col) =>
+            console.log(`Clicked cell ${col.key}:`, cell, row),
+        },
+      },
+    };
+  },
+  computed: {
+    filteredUsers() {
+      let filtered = [...this.users];
+
+      // 🌎 Global search
+      if (this.globalSearch) {
+        const searchLower = this.globalSearch.toLowerCase();
+        filtered = filtered.filter((user) =>
+          Object.values(user).some((val) =>
+            String(val).toLowerCase().includes(searchLower)
+          )
+        );
+      }
+
+      // 🔼 Top filters
+      Object.entries(this.columnFilters).forEach(([key, val]) => {
+        if (val) {
+          filtered = filtered.filter((u) =>
+            String(u[key]).toLowerCase().includes(val.toLowerCase())
+          );
+        }
+      });
+
+      // 🔽 Bottom filters
+      Object.entries(this.bottomColumnFilters).forEach(([key, val]) => {
+        if (val) {
+          filtered = filtered.filter((u) =>
+            String(u[key]).toLowerCase().includes(val.toLowerCase())
+          );
+        }
+      });
+
+      return filtered;
+    },
+    paginatedFilteredUsers() {
+      const start = (this.currentPage - 1) * this.perPage;
+      const end = start + this.perPage;
+      return this.filteredUsers.slice(start, end);
+    },
+  },
+  methods: {
+    reorderColumns({ from, to }) {
+      const moved = this.columns.splice(from, 1)[0];
+      this.columns.splice(to, 0, moved);
+    },
+    removeColumn(index) {
+      this.columns.splice(index, 1);
+    },
+    resetColumns() {
+      this.columns = JSON.parse(JSON.stringify(this.defaultColumns));
+    },
+    toggleRowSelection(row) {
+      const index = this.selectedRows.findIndex((r) => r.id === row.id);
+      if (index >= 0) this.selectedRows.splice(index, 1);
+      else this.selectedRows.push(row);
+    },
+  },
+};
+</script>
+
+<style scoped>
+.user-table-container {
+  width: 100%;
+  font-family: sans-serif;
+}
+.table-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.global-search {
+  flex: 1;
+  max-width: 300px;
+  padding: 6px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+.reset-btn {
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-left: 10px;
+  font-weight: 500;
+}
+.filter-row input {
+  width: 95%;
+  padding: 4px;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  font-size: 13px;
+}
+.bottom-filters {
+  background: #fafafa;
+}
+</style>
