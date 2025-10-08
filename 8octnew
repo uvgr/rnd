@@ -1,0 +1,200 @@
+<template>
+  <div class="user-table-container">
+    <!-- top bar, table etc (unchanged) -->
+    <BaseTable @reorder-columns="reorderColumns">
+      <template #header="{ onDragStart, onDragOver, onDrop }">
+        <tr>
+          <BaseTableHeaderCell
+            v-for="(col, index) in columns"
+            :key="col.key"
+            :index="index"
+            :on-drag-start="onDragStart"
+            :on-drag-over="onDragOver"
+            :on-drop="onDrop"
+            @remove-column="removeColumn"
+          >
+            {{ col.label }}
+          </BaseTableHeaderCell>
+        </tr>
+
+        <!-- top filters (if any) -->
+        <tr class="filter-row">
+          <th v-for="col in columns" :key="col.key">
+            <input v-model="columnFilters[col.key]" placeholder="Filter..." />
+          </th>
+        </tr>
+      </template>
+
+      <tbody>
+        <BaseTableRow
+          v-for="user in paginatedFilteredUsers"
+          :key="user.id"
+          :row-data="user"
+          :row-events="tableConfig.rowEvents"
+          :selected-ids="selectedRowIds"
+          row-id-key="id"
+          @row-select="onRowSelect"
+        >
+          <BaseTableCell
+            v-for="col in columns"
+            :key="col.key"
+            :cell-data="user[col.key]"
+            :row-data="user"
+            :column="col"
+            :cell-events="tableConfig.cellEvents"
+          >
+            {{ user[col.key] }}
+          </BaseTableCell>
+        </BaseTableRow>
+      </tbody>
+
+      <!-- bottom filters (if any) -->
+      <tfoot>
+        <tr class="filter-row bottom-filters">
+          <td v-for="col in columns" :key="col.key">
+            <input v-model="bottomColumnFilters[col.key]" placeholder="Filter..." />
+          </td>
+        </tr>
+      </tfoot>
+    </BaseTable>
+
+    <BasePagination
+      :total-records="filteredUsers.length"
+      v-model:perPage="perPage"
+      v-model:currentPage="currentPage"
+    />
+  </div>
+</template>
+
+<script>
+import BaseTable from "./BaseTable.vue";
+import BaseTableRow from "./BaseTableRow.vue";
+import BaseTableCell from "./BaseTableCell.vue";
+import BaseTableHeaderCell from "./BaseTableHeaderCell.vue";
+import BasePagination from "./BasePagination.vue";
+
+export default {
+  name: "UserTable",
+  components: {
+    BaseTable,
+    BaseTableRow,
+    BaseTableCell,
+    BaseTableHeaderCell,
+    BasePagination,
+  },
+  data() {
+    return {
+      // columns, users, filters, pagination etc (same as before)
+      columns: [
+        { key: "id", label: "ID" },
+        { key: "name", label: "Name" },
+        { key: "age", label: "Age" },
+        { key: "country", label: "Country" },
+      ],
+      users: [
+        { id: 1, name: "John", age: 29, country: "India" },
+        { id: 2, name: "Sara", age: 24, country: "USA" },
+        { id: 3, name: "Raj", age: 35, country: "UK" },
+        { id: 4, name: "Amit", age: 31, country: "India" },
+        { id: 5, name: "Mary", age: 22, country: "Canada" },
+        { id: 6, name: "Liam", age: 27, country: "Australia" },
+        { id: 7, name: "Emma", age: 30, country: "France" },
+      ],
+      perPage: 5,
+      currentPage: 1,
+      globalSearch: "",
+      columnFilters: {},
+      bottomColumnFilters: {},
+
+      // selection: store selected row ids
+      selectedRowIds: [],
+
+      // table event config
+      tableConfig: {
+        rowEvents: {
+          // click will be invoked by parent after selection logic for plain clicks
+          click: (row, event) => {
+            console.log("Configured row click handler:", row, event && event.type);
+          },
+          dblclick: (row) => {
+            console.log("Row dblclick:", row);
+          },
+        },
+        cellEvents: {
+          click: (cellValue, row, col, e) => {
+            console.log("cell click", col.key, cellValue, row);
+          },
+        },
+      },
+    };
+  },
+  computed: {
+    filteredUsers() {
+      // ... your filter logic (global + top + bottom filters)
+      let filtered = [...this.users];
+      // global
+      if (this.globalSearch) {
+        const s = this.globalSearch.toLowerCase();
+        filtered = filtered.filter((u) =>
+          Object.values(u).some((v) => String(v).toLowerCase().includes(s))
+        );
+      }
+      // top filters
+      Object.entries(this.columnFilters).forEach(([k, v]) => {
+        if (v) filtered = filtered.filter((u) => String(u[k] || "").toLowerCase().includes(v.toLowerCase()));
+      });
+      // bottom filters
+      Object.entries(this.bottomColumnFilters).forEach(([k, v]) => {
+        if (v) filtered = filtered.filter((u) => String(u[k] || "").toLowerCase().includes(v.toLowerCase()));
+      });
+      return filtered;
+    },
+    paginatedFilteredUsers() {
+      const start = (this.currentPage - 1) * this.perPage;
+      return this.filteredUsers.slice(start, start + this.perPage);
+    },
+  },
+  methods: {
+    reorderColumns({ from, to }) {
+      const moved = this.columns.splice(from, 1)[0];
+      this.columns.splice(to, 0, moved);
+    },
+    removeColumn(i) {
+      this.columns.splice(i, 1);
+    },
+
+    // <-- NEW: centralized row select handler
+    onRowSelect({ id, ctrlPressed, event }) {
+      // toggle only that row if Ctrl/Cmd pressed
+      if (ctrlPressed) {
+        const idx = this.selectedRowIds.indexOf(id);
+        if (idx >= 0) {
+          // remove
+          this.selectedRowIds.splice(idx, 1);
+        } else {
+          // add
+          this.selectedRowIds.push(id);
+        }
+      } else {
+        // plain click: single-select that row only
+        this.selectedRowIds = [id];
+      }
+
+      // After selection updated, for plain click call configured click handler (if provided)
+      if (!ctrlPressed && this.tableConfig && typeof this.tableConfig.rowEvents?.click === "function") {
+        const row = this.users.find((u) => u.id === id) || null;
+        try {
+          this.tableConfig.rowEvents.click(row, event);
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error("Error in configured row click handler:", err);
+        }
+      }
+    },
+  },
+};
+</script>
+
+<style scoped>
+/* (your styling here) */
+</style>
