@@ -1,0 +1,445 @@
+<template>
+  <div class="user-table">
+    <!-- Global search -->
+    <div class="table-controls">
+      <input v-model="globalSearch" placeholder="Global Search..." />
+      <button @click="resetFilters">Reset</button>
+    </div>
+
+    <BaseTable @reorder-columns="reorderColumns">
+      <!-- Header -->
+      <template #header="{ onDragStart, onDragOver, onDrop }">
+        <tr>
+          <BaseTableHeaderCell
+            v-for="(col, index) in columns"
+            :key="col.key"
+            :index="index"
+            :on-drag-start="onDragStart"
+            :on-drag-over="onDragOver"
+            :on-drop="onDrop"
+            @remove-column="removeColumn"
+          >
+            {{ col.label }}
+          </BaseTableHeaderCell>
+        </tr>
+        <!-- Column filters -->
+        <tr>
+          <th v-for="col in columns" :key="col.key">
+            <input v-model="columnFilters[col.key]" placeholder="Search..." />
+          </th>
+        </tr>
+      </template>
+
+      <!-- Table rows -->
+      <BaseTableRow
+        v-for="row in paginatedRows"
+        :key="row.id"
+        :row-data="row"
+        :selected-rows="selectedRows"
+        @row-selected="toggleRowSelection"
+      >
+        <BaseTableCell
+          v-for="col in columns"
+          :key="col.key"
+          :cell-data="row[col.key]"
+          :row-data="row"
+          :column="col"
+          :cell-events="cellEvents"
+        >
+          {{ row[col.key] }}
+        </BaseTableCell>
+      </BaseTableRow>
+
+      <!-- Footer filters -->
+      <template #footer>
+        <tr>
+          <td v-for="col in columns" :key="col.key">
+            <input v-model="bottomFilters[col.key]" placeholder="Search..." />
+          </td>
+        </tr>
+      </template>
+    </BaseTable>
+
+    <!-- Pagination -->
+    <BasePagination
+      :total-records="filteredRows.length"
+      :current-page="currentPage"
+      :per-page="perPage"
+      @change-page="currentPage = $event"
+      @update:perPage="updatePerPage"
+    />
+  </div>
+</template>
+
+<script>
+import BaseTable from "./BaseTable.vue";
+import BaseTableHeaderCell from "./BaseTableHeaderCell.vue";
+import BaseTableRow from "./BaseTableRow.vue";
+import BaseTableCell from "./BaseTableCell.vue";
+import BasePagination from "./BasePagination.vue";
+
+export default {
+  name: "UserTable",
+  components: {
+    BaseTable,
+    BaseTableHeaderCell,
+    BaseTableRow,
+    BaseTableCell,
+    BasePagination,
+  },
+  data() {
+    return {
+      columns: [
+        { key: "id", label: "ID" },
+        { key: "name", label: "Name" },
+        { key: "age", label: "Age" },
+        { key: "country", label: "Country" },
+      ],
+      users: [
+        { id: 1, name: "John", age: 29, country: "India" },
+        { id: 2, name: "Sara", age: 24, country: "USA" },
+        { id: 3, name: "Raj", age: 35, country: "UK" },
+        { id: 4, name: "Amit", age: 31, country: "India" },
+        { id: 5, name: "Mary", age: 22, country: "Canada" },
+        { id: 6, name: "Liam", age: 27, country: "Australia" },
+        { id: 7, name: "Emma", age: 30, country: "France" },
+      ],
+      selectedRows: [],
+      columnFilters: {},
+      bottomFilters: {},
+      globalSearch: "",
+      currentPage: 1,
+      perPage: 5,
+      cellEvents: {
+        click: (val, row, col) => console.log("Cell clicked:", col.key, val, row),
+      },
+    };
+  },
+  computed: {
+    filteredRows() {
+      let rows = [...this.users];
+      if (this.globalSearch) {
+        const s = this.globalSearch.toLowerCase();
+        rows = rows.filter((r) =>
+          Object.values(r).some((v) => String(v).toLowerCase().includes(s))
+        );
+      }
+      Object.entries(this.columnFilters).forEach(([key, val]) => {
+        if (val) rows = rows.filter((r) => String(r[key]).toLowerCase().includes(val.toLowerCase()));
+      });
+      Object.entries(this.bottomFilters).forEach(([key, val]) => {
+        if (val) rows = rows.filter((r) => String(r[key]).toLowerCase().includes(val.toLowerCase()));
+      });
+      return rows;
+    },
+    paginatedRows() {
+      const start = (this.currentPage - 1) * this.perPage;
+      return this.filteredRows.slice(start, start + this.perPage);
+    },
+  },
+  methods: {
+    reorderColumns({ from, to }) {
+      const moved = this.columns.splice(from, 1)[0];
+      this.columns.splice(to, 0, moved);
+    },
+    removeColumn(index) {
+      this.columns.splice(index, 1);
+    },
+    resetFilters() {
+      this.globalSearch = "";
+      this.columnFilters = {};
+      this.bottomFilters = {};
+    },
+    updatePerPage(value) {
+      this.perPage = value;
+      this.currentPage = 1;
+    },
+    toggleRowSelection({ row, ctrlPressed }) {
+      const exists = this.selectedRows.some((r) => r.id === row.id);
+
+      if (ctrlPressed) {
+        this.selectedRows = exists
+          ? this.selectedRows.filter((r) => r.id !== row.id)
+          : [...this.selectedRows, row];
+      } else {
+        this.selectedRows = exists ? [] : [row];
+      }
+    },
+  },
+};
+</script>
+
+<style scoped>
+.user-table {
+  font-family: Arial, sans-serif;
+}
+.table-controls {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.table-controls input {
+  flex: 1;
+  padding: 4px;
+}
+</style>
+
+
+<template>
+  <div class="pagination">
+    <div class="pagination-left">
+      <label>
+        Rows per page:
+        <select v-model.number="perPageLocal" @change="updatePerPage">
+          <option v-for="n in [5, 10, 20]" :key="n" :value="n">{{ n }}</option>
+        </select>
+      </label>
+      <span>Total: {{ totalRecords }}</span>
+    </div>
+    <div class="pagination-right">
+      <button :disabled="currentPage === 1" @click="$emit('change-page', currentPage - 1)">Prev</button>
+      <span>{{ currentPage }}</span>
+      <button :disabled="endIndex >= totalRecords" @click="$emit('change-page', currentPage + 1)">Next</button>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  name: "BasePagination",
+  props: {
+    totalRecords: Number,
+    currentPage: Number,
+    perPage: Number,
+  },
+  emits: ["update:perPage", "change-page"],
+  data() {
+    return { perPageLocal: this.perPage };
+  },
+  computed: {
+    endIndex() {
+      return this.currentPage * this.perPageLocal;
+    },
+  },
+  methods: {
+    updatePerPage() {
+      this.$emit("update:perPage", this.perPageLocal);
+      this.$emit("change-page", 1);
+    },
+  },
+};
+</script>
+
+<style scoped>
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px;
+}
+.pagination button {
+  margin: 0 4px;
+}
+</style>
+
+
+<template>
+  <tr
+    class="base-table-row"
+    :class="{ hovered: isHovered, selected: isSelected }"
+    @mouseenter="isHovered = true"
+    @mouseleave="isHovered = false"
+    @click="handleRowClick"
+  >
+    <slot></slot>
+  </tr>
+</template>
+
+<script>
+export default {
+  name: "BaseTableRow",
+  props: {
+    rowData: { type: Object, required: true },
+    selectedRows: { type: Array, default: () => [] },
+  },
+  emits: ["row-selected"],
+  data() {
+    return { isHovered: false };
+  },
+  computed: {
+    isSelected() {
+      return this.selectedRows.some((r) => r.id === this.rowData.id);
+    },
+  },
+  methods: {
+    handleRowClick(event) {
+      const ctrlPressed = event.ctrlKey || event.metaKey;
+      this.$emit("row-selected", { row: this.rowData, ctrlPressed });
+    },
+  },
+};
+</script>
+
+<style scoped>
+.base-table-row.hovered {
+  background-color: #f3f8ff;
+}
+.base-table-row.selected {
+  background-color: #cde4ff;
+}
+</style>
+
+
+
+<template>
+  <td class="base-table-cell" v-on="boundCellEvents">
+    <slot></slot>
+  </td>
+</template>
+
+<script>
+export default {
+  name: "BaseTableCell",
+  props: {
+    cellData: [String, Number, Object],
+    rowData: Object,
+    column: Object,
+    cellEvents: { type: Object, default: () => ({}) },
+  },
+  computed: {
+    boundCellEvents() {
+      const bindings = {};
+      Object.entries(this.cellEvents).forEach(([eventName, handler]) => {
+        bindings[eventName] = (e) =>
+          handler(this.cellData, this.rowData, this.column, e);
+      });
+      return bindings;
+    },
+  },
+};
+</script>
+
+<style scoped>
+.base-table-cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+</style>
+
+<template>
+  <th draggable="true"
+      @dragstart="onDragStart(index)"
+      @dragover="onDragOver(index, $event)"
+      @drop="onDrop(index)">
+    <div class="header-content">
+      <span class="header-label"><slot></slot></span>
+      <button class="close-btn" @click.stop="$emit('remove-column', index)">×</button>
+    </div>
+  </th>
+</template>
+
+<script>
+export default {
+  name: "BaseTableHeaderCell",
+  props: {
+    index: Number,
+    onDragStart: Function,
+    onDragOver: Function,
+    onDrop: Function,
+  },
+};
+</script>
+
+<style scoped>
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.close-btn {
+  background: transparent;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  font-size: 14px;
+  margin-left: 6px;
+}
+.close-btn:hover {
+  color: #d00;
+}
+</style>
+
+
+<template>
+  <div class="table-container">
+    <table class="base-table">
+      <thead>
+        <slot name="header"
+              :onDragStart="onDragStart"
+              :onDragOver="onDragOver"
+              :onDrop="onDrop"></slot>
+      </thead>
+      <tbody>
+        <slot></slot>
+      </tbody>
+      <tfoot>
+        <slot name="footer"></slot>
+      </tfoot>
+    </table>
+  </div>
+</template>
+
+<script>
+export default {
+  name: "BaseTable",
+  emits: ["reorder-columns"],
+  data() {
+    return {
+      dragStartIndex: null,
+    };
+  },
+  methods: {
+    onDragStart(index) {
+      this.dragStartIndex = index;
+    },
+    onDragOver(event) {
+      event.preventDefault();
+    },
+    onDrop(index) {
+      if (this.dragStartIndex !== null && this.dragStartIndex !== index) {
+        this.$emit("reorder-columns", {
+          from: this.dragStartIndex,
+          to: index,
+        });
+      }
+      this.dragStartIndex = null;
+    },
+  },
+};
+</script>
+
+<style scoped>
+.table-container {
+  overflow-x: auto;
+}
+.base-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  border: 1px solid #ddd;
+}
+.base-table th,
+.base-table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+.base-table th {
+  background: #f7f7f7;
+}
+</style>
+
+
